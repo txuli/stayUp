@@ -30,6 +30,7 @@ async def on_ready():
         print("🔄 Cargando Cogs...")
         await bot.load_extension("commands.addUrl")
         await bot.load_extension("commands.status")
+        await bot.load_extension("commands.deleteUrl")
         print("✅ Cogs cargados correctamente.")
     except Exception as e:
         print(f"❌ Error al cargar los Cogs: {e}")

@@ -30,13 +30,17 @@ async def addurl(interaction: discord.Interaction, url: str):
     if usuario_id not in data[servidor_id]:
         data[servidor_id][usuario_id] = {"urls": []}
 
-    if url in data[servidor_id][usuario_id]["urls"]:
+    # Normalizar la URL para evitar errores
+    new_url = url if url.startswith("http") else f"https://{url}"
+    
+    if new_url in data[servidor_id][usuario_id]["urls"]:
         await interaction.response.send_message("⚠️ Esa URL ya está registrada.", ephemeral=True)
         return
 
-    data[servidor_id][usuario_id]["urls"].append(url)
+    data[servidor_id][usuario_id]["urls"].append(new_url)
     guardar_datos(data)
-    await interaction.response.send_message("✅ URL añadida correctamente.", ephemeral=True)
+    await interaction.response.send_message(f"✅ URL añadida: {new_url}", ephemeral=True)
+
 
 class AddUrl(commands.Cog):
     def __init__(self, bot):

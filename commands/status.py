@@ -7,7 +7,7 @@ from .json_dbp import cargar_datos
 class StatusServ(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        print("📦 Cog StatusServ inicializado.")
+        
 
     @app_commands.command(name="statusserv", description="Verifica el estado de una URL o todas las guardadas")
     @app_commands.describe(url="(opcional) URL individual a verificar")
@@ -17,7 +17,7 @@ class StatusServ(commands.Cog):
         data = cargar_datos()
 
         if servidor_id not in data:
-            await interaction.response.send_message("❌ No hay datos para este servidor.", ephemeral=True)
+            await interaction.response.send_message("no data for this server", ephemeral=True)
             return
 
         if not url:
