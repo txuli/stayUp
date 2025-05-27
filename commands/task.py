@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-CANAL_ID = os.getenv('CANAL_ID ')
+CANAL_ID = int(os.getenv('CANAL_ID'))
 
 async def status_task(bot):
     canal = bot.get_channel(CANAL_ID)
