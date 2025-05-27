@@ -3,13 +3,20 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from .json_dbp import guardar_datos, cargar_datos
-
+from commands.task import status_task
 
 class DeleteUrl(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
- 
+        remove_cmd = app_commands.Command(
+            name="removeurl",
+            description="Eliminar una URL guardada para este servidor",
+            callback=self.remove_url,
+        )
+        remove_cmd.autocomplete("url")(self.autocompletar_urls)
+        self.bot.tree.add_command(remove_cmd)
+
     async def autocompletar_urls(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         data = cargar_datos()
         server_id = str(interaction.guild_id)
@@ -18,17 +25,12 @@ class DeleteUrl(commands.Cog):
         choices = []
         if server_id in data and user_id in data[server_id]:
             urls = data[server_id][user_id].get("urls", [])
-            # Filtrar según lo que el usuario está escribiendo (current)
             for url in urls:
                 if current.lower() in url.lower():
                     choices.append(app_commands.Choice(name=url, value=url))
 
-        # Discord permite máximo 25 sugerencias
         return choices[:25]
 
-    @app_commands.command(name="removeurl", description="Eliminar una URL guardada para este servidor")
-    @app_commands.describe(url="La URL que quieres eliminar")
-    @app_commands.autocomplete(url=autocompletar_urls)
     async def remove_url(self, interaction: discord.Interaction, url: str):
         data = cargar_datos()
         server_id = str(interaction.guild_id)
@@ -41,12 +43,30 @@ class DeleteUrl(commands.Cog):
             if new_url in urls:
                 urls.remove(new_url)
                 guardar_datos(data)
-                await interaction.response.send_message(f"✅ La URL '{url}' fue eliminada.", ephemeral=True)
+                embed=discord.Embed(
+                title='url deletion',
+                description=f'the url, {url} was deleted successfully',
+                color=discord.Color.green()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
             else:
-                await interaction.response.send_message("⚠️ La URL no está en tu lista.", ephemeral=True)
+                embed=discord.Embed(
+                title='url deletion',
+                description=f"the url, {url} was isn't in your data",
+                color=discord.Color.red()
+                )
+                await interaction.response.send_message( mbed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message("❌ No tienes URLs guardadas en este servidor.", ephemeral=True)
-
+            embed=discord.Embed(
+            title='url deletion',
+            description=f"your server hasn't url to remove",
+            color=discord.Color.red()
+            
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        await status_task(self.bot)   
+    
 # Registrar el Cog
 async def setup(bot):
     await bot.add_cog(DeleteUrl(bot))

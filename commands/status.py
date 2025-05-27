@@ -34,10 +34,19 @@ class StatusServ(commands.Cog):
                             erroneas.append(f"{u} (HTTP {response.status_code})")
                     except:
                         erroneas.append(f"{u} (No se pudo conectar)")
+            embed = discord.Embed(
+                title="Status of url's",
+                description = (
+                    (f"**<a:online:1376996976843030539> URLs accesibles:**\n" + "\n".join(correctas) + "\n\n") if correctas else "Ninguna URL accesible.\n\n"
+                        ) + (
+                    (f"**<a:error:1377005191752187984> URLs con error:**\n" + "\n".join(erroneas)) if erroneas else "Ninguna URL con error."
+                    ),
 
-            mensaje = "**✅ URLs accesibles:**\n" + "\n".join(correctas) if correctas else "Ninguna URL accesible."
-            mensaje += "\n\n**❌ URLs con error:**\n" + "\n".join(erroneas) if erroneas else "Ninguna URL con error."
-            await interaction.response.send_message(mensaje[:2000], ephemeral=True)
+                color = discord.Color.red() if len(erroneas) > 1 else discord.Color.green()
+
+            )
+           
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             try:
                 response = requests.get(url, timeout=5)
