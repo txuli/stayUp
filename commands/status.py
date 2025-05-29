@@ -2,7 +2,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import requests
-from .json_dbp import cargar_datos
+from datetime import datetime
+from db_queries import cargar_urls
+from zoneinfo import ZoneInfo
+from checks import check_top_role
 
 class StatusServ(commands.Cog):
     def __init__(self, bot):
@@ -11,53 +14,56 @@ class StatusServ(commands.Cog):
 
     @app_commands.command(name="statusserv", description="Verifica el estado de una URL o todas las guardadas")
     @app_commands.describe(url="(opcional) URL individual a verificar")
+    @check_top_role()
     async def status_serv(self, interaction: discord.Interaction, url: str = None):
-        print(f"🔍 Ejecutando comando /statusserv para el servidor {interaction.guild_id}")
+        print(f"🔍 Running /statusserv command for the server{interaction.guild_id}")
         servidor_id = str(interaction.guild_id)
-        data = cargar_datos()
+        if not url:
+            data = cargar_urls(servidor_id)
+        else:
+            new_url = url if url.startswith("http") else f"https://{url}"
+            data = [{"url": new_url, "userId": interaction.user.id}]
 
-        if servidor_id not in data:
+            
+        print(data)
+        if not data:
             await interaction.response.send_message("no data for this server", ephemeral=True)
             return
 
-        if not url:
-            correctas = []
-            erroneas = []
-            for usuario_id, info in data[servidor_id].items():
-                urls = info.get("urls", [])
-                for u in urls:
-                    try:
-                        response = requests.get(u, timeout=5)
-                        if response.status_code == 200:
-                            correctas.append(u)
-                        else:
-                            erroneas.append(f"{u} (HTTP {response.status_code})")
-                    except:
-                        erroneas.append(f"{u} (No se pudo conectar)")
-            embed = discord.Embed(
-                title="Status of url's",
-                description = (
-                    (f"**<a:online:1376996976843030539> URLs accesibles:**\n" + "\n".join(correctas) + "\n\n") if correctas else "Ninguna URL accesible.\n\n"
-                        ) + (
-                    (f"**<a:error:1377005191752187984> URLs con error:**\n" + "\n".join(erroneas)) if erroneas else "Ninguna URL con error."
-                    ),
-
-                color = discord.Color.red() if len(erroneas) > 1 else discord.Color.green()
-
-            )
-           
-            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            try:
-                response = requests.get(url, timeout=5)
-                if response.status_code == 200:
-                    await interaction.response.send_message(f"✅ {url} está online.")
-                else:
-                    await interaction.response.send_message(f"⚠️ {url} no responde correctamente (HTTP {response.status_code})")
-            except:
-                await interaction.response.send_message(f"❌ No se pudo conectar con {url}.")
+            resultado_urls =[]
+            for item in data:
+                print("entra al for")
+                user_id = item.get("userId")
+                mencion = f"<@{user_id}>" if user_id else ""
+                url = item["url"]
+                try:
+
+                    response = requests.get(url, timeout=5)
+                    if response.status_code == 200:
+                        resultado_urls.append(f"<a:online:1376996976843030539> {url}")
+                    else:
+                        resultado_urls.append(f"<a:error2:1377008688052830399> {mencion} {url} (Status: {response.status_code}), ")
+                except:
+                    resultado_urls.append(f"<a:error2:1377008688052830399> {mencion} {url} (Sin respuesta)")
+
+                hora_espana = datetime.now(ZoneInfo("Europe/Madrid"))
+       
+            embed = discord.Embed(
+                title="🔎 Status of URLs",
+                description="\n".join(resultado_urls) if resultado_urls else "No URLs were found to review.",
+                color=discord.Color.red() if any("error2" in r for r in resultado_urls) else discord.Color.blue(),
+            )
+            embed.set_footer(text=f"Last fetch: {hora_espana.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+        
+        
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        
+        
 
 async def setup(bot):
-    print("📦 Intentando cargar el Cog StatusServ...")
+   
     await bot.add_cog(StatusServ(bot))
-    print("📦 Cog StatusServ cargado exitosamente.")
+   
