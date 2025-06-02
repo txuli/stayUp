@@ -2,61 +2,78 @@ import requests
 import discord
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from db_queries import cargar_urls, cargar_mensaje_db, guardar_mensaje_db
+from db_queries import cargar_urls, cargar_mensaje_db, guardar_mensaje_db  # Update these names in your DB module
 
 async def status_task(bot):
     for guild in bot.guilds:
-        servidor_id = guild.id
-        urls = cargar_urls(servidor_id)
+        server_id = guild.id
+        urls = cargar_urls(server_id)
 
         if not urls:
             continue
 
-        mensaje_info = cargar_mensaje_db(servidor_id)
-        canal = None
-        mensaje = None
+        message_info = cargar_mensaje_db(server_id)
+        channel = None
+        message = None
 
-        #  obtain the channel of the message
-        if mensaje_info and mensaje_info["channel_id"]:
-            canal = bot.get_channel(int(mensaje_info["channel_id"]))
+        # Try to get the previously saved channel
+        if message_info and message_info["channel_id"]:
+            channel = bot.get_channel(int(message_info["channel_id"]))
 
-        if not canal:
-            print(f"⚠️ No se encontró el canal para el servidor {servidor_id}.")
-            continue
+        # If there's no registered channel, search for or create "logs" channel
+        if not channel:
+            # Look for an existing "logs" channel
+            existing_channel = discord.utils.get(guild.text_channels, name="logs")
+            if existing_channel:
+                channel = existing_channel
+                print(f"📁 'logs' channel already exists in server {guild.name} ({server_id})")
+            else:
+                # Create "logs" channel if not found
+                try:
+                    channel = await guild.create_text_channel(name="logs", reason="Channel created to log URL status updates")
+                    print(f"✅ Created 'logs' channel in server {guild.name} ({server_id})")
+                except discord.Forbidden:
+                    print(f"❌ Missing permissions to create channel in {guild.name} ({server_id})")
+                    continue
+                except Exception as e:
+                    print(f"❌ Error creating channel in {guild.name} ({server_id}): {e}")
+                    continue
 
-        # verigfy each URL
-        resultado_urls = []
-       
+            # Save the channel ID with a placeholder message ID (will be updated below)
+            guardar_mensaje_db(server_id, channel.id, 0)
+
+        # Check each URL
+        url_results = []
         for item in urls:
             user_id = item.get("userId")
-            mencion = f"<@{user_id}>" if user_id else ""
+            mention = f"<@{user_id}>" if user_id else ""
             url = item["url"]
             try:
                 response = requests.get(url, timeout=5)
                 if response.status_code == 200:
-                    resultado_urls.append(f"<a:online:1376996976843030539> {url}")
+                    url_results.append(f"<a:online:1376996976843030539> {url}")
                 else:
-                    resultado_urls.append(f"<a:error2:1377008688052830399> {mencion} {url} (Status: {response.status_code}), ")
+                    url_results.append(f"<a:error2:1377008688052830399> {mention} {url} (Status: {response.status_code})")
             except:
-                resultado_urls.append(f"<a:error2:1377008688052830399> {mencion} {url} (Sin respuesta)")
+                url_results.append(f"<a:error2:1377008688052830399> {mention} {url} (No response)")
 
-        hora_espana = datetime.now(ZoneInfo("Europe/Madrid"))
+        current_time = datetime.now(ZoneInfo("Europe/Madrid"))
         embed = discord.Embed(
-            title="🔎 Revisión automática de URLs",
-            description="\n".join(resultado_urls) if resultado_urls else "No se encontraron URLs para revisar.",
-            color=discord.Color.red() if any("error2" in r for r in resultado_urls) else discord.Color.blue(),
+            title="🔎 URL Auto-Check",
+            description="\n".join(url_results) if url_results else "No URLs found to check.",
+            color=discord.Color.red() if any("error2" in r for r in url_results) else discord.Color.blue(),
         )
-        embed.set_footer(text=f"Last fetch: {hora_espana.strftime('%Y-%m-%d %H:%M:%S')}")
+        embed.set_footer(text=f"Last checked: {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-        # try to edit the message
-        if mensaje_info and mensaje_info["message_id"]:
+        # Try to edit the previous message
+        if message_info and message_info["message_id"]:
             try:
-                mensaje = await canal.fetch_message(int(mensaje_info["message_id"]))
-                await mensaje.edit(embed=embed)
-                continue  
+                message = await channel.fetch_message(int(message_info["message_id"]))
+                await message.edit(embed=embed)
+                continue
             except:
-                print(f"⚠️ No se pudo editar el mensaje en canal {canal.id}. Se enviará uno nuevo.")
+                print(f"⚠️ Could not edit the previous message in channel {channel.id}. A new one will be sent.")
 
-       
-        mensaje = await canal.send(embed=embed)
-        guardar_mensaje_db(servidor_id, canal.id, mensaje.id)
+        # Send new message if editing failed
+        message = await channel.send(embed=embed)
+        guardar_mensaje_db(server_id, channel.id, message.id)

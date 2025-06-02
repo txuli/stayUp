@@ -16,15 +16,15 @@ def cargar_datos(servidor_id):
         cursor.execute(sql, (servidor_id,))
         return cursor.fetchall()
 
-def newServer(servidor_id):
-   
+def newServer(servidor_id, usuario_id):
     try:
         with db_cursor() as cursor:
-            sql = "INSERT INTO servers(id,userid) VALUES (%s,%s)"
-            val=(servidor_id, usuario_id)
+            sql = "INSERT INTO servers(id, userid) VALUES (%s,%s)"
+            val = (servidor_id, usuario_id)
             cursor.execute(sql, val)
     except Error as e:
         print("❌ Error al insertar en la base de datos:", e)
+
 
 
 def insertUrl(servidor_id, new_url):
@@ -65,7 +65,7 @@ class AddUrl(commands.Cog):
         data = cargar_datos(servidor_id)
         print(data)
         if not data:
-            newServer(servidor_id)
+            newServer(servidor_id,usuario_id)
         
         new_url = url if url.startswith("http") else f"https://{url}"
         embed=insertUrl(servidor_id, new_url)
