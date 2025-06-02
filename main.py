@@ -22,7 +22,7 @@ intents.presences = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=60)
 async def ejecutar_tarea_status():
     await  status_task(bot)
 @bot.event
