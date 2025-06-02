@@ -94,8 +94,8 @@ Stores URLs associated with a given server.
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/discord-url-manager-bot.git
-cd discord-url-manager-bot
+git clone https://github.com/txuli/stayUp.git
+cd stayUp
 ```
 
 2. Install the dependencies:
