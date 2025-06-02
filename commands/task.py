@@ -30,17 +30,44 @@ async def status_task(bot):
             else:
                 # Create "logs" channel if not found
                 try:
-                    channel = await guild.create_text_channel(name="logs", reason="Channel created to log URL status updates")
-                    print(f"✅ Created 'logs' channel in server {guild.name} ({server_id})")
+                    
+                    top_role = max(
+                        (role for role in guild.roles if role != guild.default_role),
+                        key=lambda r: r.position
+                    )
+
+                   
+                    stayup_role = discord.utils.get(guild.roles, name="stayUp")
+
+                    
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=False),  # Ocultar para todos
+                        top_role: discord.PermissionOverwrite(view_channel=True, read_message_history=True),
+                    }
+
+                    
+                    if stayup_role:
+                        overwrites[stayup_role] = discord.PermissionOverwrite(view_channel=True, read_message_history=True)
+
+                   
+                    channel = await guild.create_text_channel(
+                        name="logs",
+                        overwrites=overwrites,
+                        reason="Channel created to log URL status updates"
+                    )
+
+                    print(f"✅ Created private 'logs' channel in server {guild.name} ({server_id})")
+
                 except discord.Forbidden:
                     print(f"❌ Missing permissions to create channel in {guild.name} ({server_id})")
                     continue
+
                 except Exception as e:
                     print(f"❌ Error creating channel in {guild.name} ({server_id}): {e}")
                     continue
 
             # Save the channel ID with a placeholder message ID (will be updated below)
-            guardar_mensaje_db(server_id, channel.id, 0)
+            guardar_mensaje_db(server_id, channel.id, message_id)
 
         # Check each URL
         url_results = []
